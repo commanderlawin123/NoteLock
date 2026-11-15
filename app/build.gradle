@@ -14,9 +14,23 @@ android {
         versionName '1.0'
     }
 
+    // One fixed key, so every new build installs over the previous one.
+    signingConfigs {
+        notelock {
+            storeFile file('notelock.keystore')
+            storePassword 'notelock'
+            keyAlias 'notelock'
+            keyPassword 'notelock'
+        }
+    }
+
     buildTypes {
+        debug {
+            signingConfig signingConfigs.notelock
+        }
         release {
             minifyEnabled false
+            signingConfig signingConfigs.notelock
         }
     }
 
