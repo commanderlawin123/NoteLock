@@ -17,6 +17,12 @@ jobs:
         run: |
           chmod +x gradlew
           ./gradlew assembleDebug --no-daemon
+      - name: Check the APK signature
+        run: |
+          BT=$(ls -d $ANDROID_HOME/build-tools/* | sort -V | tail -1)
+          $BT/apksigner verify --verbose --print-certs app/build/outputs/apk/debug/*.apk
+          $BT/aapt dump badging app/build/outputs/apk/debug/*.apk | grep -E "package:|sdkVersion|targetSdk|testOnly" || true
+          $BT/aapt dump xmltree app/build/outputs/apk/debug/*.apk AndroidManifest.xml | grep -i testOnly || echo "not testOnly"
       - uses: actions/upload-artifact@v4
         with:
           name: NoteLock-apk
