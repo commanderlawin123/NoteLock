@@ -33,7 +33,6 @@
             android:taskAffinity="com.notelock.app.lock"
             android:screenOrientation="portrait"
             android:showWhenLocked="true"
-            android:turnScreenOn="true"
             android:theme="@android:style/Theme.DeviceDefault.NoActionBar.Fullscreen" />
 
         <service

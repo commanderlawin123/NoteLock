@@ -41,6 +41,7 @@ public class LockService extends Service {
 
     static void showLock(Context c) {
         if (!Notes.isEnabled(c) || !Settings.canDrawOverlays(c)) return;
+        if (LockActivity.screenLockShowing) return; // already waiting; don't reopen it
         Intent lock = new Intent(c, LockActivity.class);
         lock.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK
                 | Intent.FLAG_ACTIVITY_NO_ANIMATION

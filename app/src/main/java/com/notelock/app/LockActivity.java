@@ -38,6 +38,8 @@ public class LockActivity extends Activity {
     static final int MODE_APP = 1;
     /** Package whose app-lock quiz is currently on screen (null if none). */
     static volatile String showingFor;
+    /** True while the lock-screen quiz is already up, so it isn't opened again. */
+    static volatile boolean screenLockShowing;
 
     private int mode = MODE_SCREEN;
     private String targetPkg;
@@ -82,7 +84,8 @@ public class LockActivity extends Activity {
         targetPkg = intent.getStringExtra(EXTRA_PKG);
         boolean screen = mode == MODE_SCREEN;
         setShowWhenLocked(screen);
-        setTurnScreenOn(screen);
+        setTurnScreenOn(false); // never wake the screen; just be waiting when you turn it on
+        screenLockShowing = screen;
         if (screen) {
             showingFor = null;
             title.setText("Name the note to unlock");
@@ -141,6 +144,7 @@ public class LockActivity extends Activity {
         handler.removeCallbacksAndMessages(null);
         player.stop();
         if (mode == MODE_APP && targetPkg != null && targetPkg.equals(showingFor)) showingFor = null;
+        if (mode == MODE_SCREEN) screenLockShowing = false;
         super.onDestroy();
     }
 
