@@ -32,6 +32,17 @@ public class LockActivity extends Activity {
     private static final int BAD = 0xFFC2413B;
     private static final int ACCENT = 0xFF7C5CFF;
 
+    static final String EXTRA_MODE = "mode";
+    static final String EXTRA_PKG = "pkg";
+    static final int MODE_SCREEN = 0;
+    static final int MODE_APP = 1;
+    /** Package whose app-lock quiz is currently on screen (null if none). */
+    static volatile String showingFor;
+
+    private int mode = MODE_SCREEN;
+    private String targetPkg;
+    private TextView title;
+
     private final TonePlayer player = new TonePlayer();
     private final Random rnd = new Random();
     private final Handler handler = new Handler(Looper.getMainLooper());
@@ -51,8 +62,6 @@ public class LockActivity extends Activity {
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        setShowWhenLocked(true);
-        setTurnScreenOn(true);
         setVolumeControlStream(AudioManager.STREAM_MUSIC);
         Window w = getWindow();
         w.setStatusBarColor(BG_TOP);
@@ -63,7 +72,33 @@ public class LockActivity extends Activity {
         swipeDistance = dp(120);
 
         setContentView(buildUi());
+        applyMode(getIntent());
         newQuestion();
+    }
+
+    /** Lock-screen mode (shows over Android's lock screen) or app-lock mode. */
+    private void applyMode(Intent intent) {
+        mode = intent.getIntExtra(EXTRA_MODE, MODE_SCREEN);
+        targetPkg = intent.getStringExtra(EXTRA_PKG);
+        boolean screen = mode == MODE_SCREEN;
+        setShowWhenLocked(screen);
+        setTurnScreenOn(screen);
+        if (screen) {
+            showingFor = null;
+            title.setText("Name the note to unlock");
+        } else {
+            showingFor = targetPkg;
+            title.setText("Name the note to open " + appLabel(targetPkg));
+        }
+    }
+
+    private String appLabel(String pkg) {
+        try {
+            return getPackageManager().getApplicationLabel(
+                    getPackageManager().getApplicationInfo(pkg, 0)).toString();
+        } catch (Exception e) {
+            return "this app";
+        }
     }
 
     @Override
@@ -71,6 +106,8 @@ public class LockActivity extends Activity {
         super.onNewIntent(intent);
         setIntent(intent);
         unlocking = false;
+        handler.removeCallbacksAndMessages(null);
+        applyMode(intent);
         newQuestion();
     }
 
@@ -91,19 +128,35 @@ public class LockActivity extends Activity {
         super.onStop();
         player.stop();
         played = false; // replay the same note next time the screen comes on
+        // App lock: if you leave without answering (Home, Recents), drop the quiz;
+        // it comes back the next time you open that app.
+        if (mode == MODE_APP && !isFinishing()) {
+            showingFor = null;
+            finish();
+        }
     }
 
     @Override
     protected void onDestroy() {
         handler.removeCallbacksAndMessages(null);
         player.stop();
+        if (mode == MODE_APP && targetPkg != null && targetPkg.equals(showingFor)) showingFor = null;
         super.onDestroy();
     }
 
     @Override
     @SuppressWarnings("deprecation")
     public void onBackPressed() {
-        // Back does nothing: answer the note or swipe up.
+        // Lock screen: Back does nothing. App lock: Back goes to the home screen.
+        if (mode == MODE_APP) goHome();
+    }
+
+    private void goHome() {
+        showingFor = null;
+        Intent home = new Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_HOME)
+                .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+        startActivity(home);
+        finish();
     }
 
     // ---------------------------------------------------------------- logic
@@ -170,6 +223,15 @@ public class LockActivity extends Activity {
         if (unlocking) return;
         unlocking = true;
         player.stop();
+        if (mode == MODE_APP) {
+            AppLockService.markUnlocked(targetPkg);
+            showingFor = null;
+            finish();
+            overridePendingTransition(0, android.R.anim.fade_out);
+            return;
+        }
+        // Passing the lock screen also counts for the app you were in.
+        AppLockService.markUnlocked(AppLockService.lastForeground);
         KeyguardManager km = getSystemService(KeyguardManager.class);
         if (km != null && km.isKeyguardLocked()) {
             // Swipe lock: dismissed straight away. PIN/pattern/fingerprint: Android asks for it next.
@@ -240,7 +302,7 @@ public class LockActivity extends Activity {
 
         root.addView(space(1f));
 
-        TextView title = text("Name the note to unlock", 20, Color.WHITE);
+        title = text("Name the note to unlock", 20, Color.WHITE);
         root.addView(title);
 
         Button speaker = new Button(this);
@@ -298,7 +360,7 @@ public class LockActivity extends Activity {
 
         TextView arrow = text("︿", 24, 0xCCFFFFFF);
         root.addView(arrow);
-        TextView swipe = text("Swipe up for emergency unlock", 14, 0xCCFFFFFF);
+        TextView swipe = text("Swipe up to skip (emergency)", 14, 0xCCFFFFFF);
         root.addView(swipe);
         return root;
     }

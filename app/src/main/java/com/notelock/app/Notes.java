@@ -5,7 +5,9 @@ import android.content.SharedPreferences;
 
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.Random;
 
 /** Note names, question generation and app settings. */
@@ -65,5 +67,15 @@ public final class Notes {
 
     public static boolean isEnabled(Context c) {
         return prefs(c).getBoolean(KEY_ENABLED, false);
+    }
+
+    static final String KEY_LOCKED_APPS = "locked_apps";
+
+    public static Set<String> lockedApps(Context c) {
+        return new HashSet<>(prefs(c).getStringSet(KEY_LOCKED_APPS, new HashSet<>()));
+    }
+
+    public static void setLockedApps(Context c, Set<String> apps) {
+        prefs(c).edit().putStringSet(KEY_LOCKED_APPS, new HashSet<>(apps)).apply();
     }
 }

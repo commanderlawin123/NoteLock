@@ -1,4 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">Note Lock</string>
+    <string name="applock_label">Note Lock app lock</string>
+    <string name="applock_description">Shows the note quiz before the apps you chose in Note Lock can open. It only checks which app just opened. It does not read what is on your screen, and Note Lock has no internet access.</string>
 </resources>

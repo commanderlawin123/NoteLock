@@ -22,7 +22,7 @@ import android.widget.Toast;
 /** Settings screen: turn the lock on, grant permissions, try it out. */
 public class MainActivity extends Activity {
     private Switch enable;
-    private Button overlayBtn, notifBtn, batteryBtn;
+    private Button overlayBtn, notifBtn, batteryBtn, pickBtn, accessBtn;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -41,7 +41,7 @@ public class MainActivity extends Activity {
                 + "of six to unlock. To skip it in an emergency, swipe up from the bottom.", 15, 0xB3FFFFFF));
 
         enable = new Switch(this);
-        enable.setText("Enable Note Lock");
+        enable.setText("Lock screen: name a note to unlock");
         enable.setTextColor(Color.WHITE);
         enable.setTextSize(TypedValue.COMPLEX_UNIT_SP, 18);
         enable.setChecked(Notes.isEnabled(this));
@@ -86,6 +86,27 @@ public class MainActivity extends Activity {
         test.setText("Try the lock screen now");
         col.addView(test, margins(28));
 
+        col.addView(text("App lock", 18, Color.WHITE), margins(32));
+        col.addView(text("Pick apps (like Facebook, TikTok or Instagram) that need the note "
+                + "quiz before they open. Once you pass, the app stays open until you leave it.",
+                14, 0xB3FFFFFF));
+
+        pickBtn = button(v -> startActivity(new Intent(this, AppPickerActivity.class)));
+        col.addView(pickBtn, margins(8));
+
+        accessBtn = button(v -> startActivity(new Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS)));
+        col.addView(accessBtn, margins(8));
+
+        Button restricted = button(v -> startActivity(new Intent(
+                Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
+                Uri.parse("package:" + getPackageName()))));
+        restricted.setText("Can't turn it on? Open App info");
+        col.addView(restricted, margins(8));
+        col.addView(text("If Android says the setting is restricted: tap the button above, "
+                + "tap ⋮ (top right) → \"Allow restricted settings\", then try again. "
+                + "Android will warn that the app can see your screen. Note Lock only checks "
+                + "which app opened, and it has no internet access.", 13, 0x99FFFFFF), margins(4));
+
         col.addView(text("Tips\n"
                 + "• Set Android's own screen lock to \"Swipe\" or \"None\" so Note Lock is the "
                 + "only thing you unlock. If you keep a PIN, Android will ask for it after the note.\n"
@@ -127,6 +148,23 @@ public class MainActivity extends Activity {
         boolean battery = pm != null && pm.isIgnoringBatteryOptimizations(getPackageName());
         batteryBtn.setText((battery ? "✓ " : "3. ") + "Don't let battery saver stop it");
         batteryBtn.setEnabled(!battery);
+
+        int n = Notes.lockedApps(this).size();
+        pickBtn.setText("Choose apps to lock (" + n + " selected)");
+        accessBtn.setText((appLockOn() ? "✓ App lock is on" : "Turn on app lock")
+                + " (Accessibility → Note Lock)");
+    }
+
+    private boolean appLockOn() {
+        String on = Settings.Secure.getString(getContentResolver(),
+                Settings.Secure.ENABLED_ACCESSIBILITY_SERVICES);
+        if (on == null) return false;
+        String me = new android.content.ComponentName(this, AppLockService.class).flattenToString();
+        String meShort = getPackageName() + "/.AppLockService";
+        for (String s : on.split(":")) {
+            if (s.equalsIgnoreCase(me) || s.equalsIgnoreCase(meShort)) return true;
+        }
+        return false;
     }
 
     private Button button(android.view.View.OnClickListener l) {
