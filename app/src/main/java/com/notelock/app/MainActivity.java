@@ -6,7 +6,13 @@ import android.content.ComponentName;
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
+import android.content.res.ColorStateList;
 import android.graphics.Color;
+import android.graphics.Paint;
+import android.graphics.Typeface;
+import android.graphics.drawable.Drawable;
+import android.graphics.drawable.GradientDrawable;
+import android.graphics.drawable.StateListDrawable;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
@@ -20,6 +26,7 @@ import android.widget.AdapterView;
 import android.widget.ArrayAdapter;
 import android.widget.Button;
 import android.widget.CheckBox;
+import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.ScrollView;
 import android.widget.Spinner;
@@ -27,112 +34,148 @@ import android.widget.Switch;
 import android.widget.TextView;
 import android.widget.Toast;
 
-/** Settings: what to identify, where to use it, permissions, and a test button. */
+/** Settings: permissions, what to identify, where to use it, and a test button. */
 public class MainActivity extends Activity {
+    // Palette (change these to restyle the whole screen)
+    static final int BG = 0xFF2D2A47;          // soft indigo background
+    static final int CARD = 0xFF3A3659;        // section card
+    static final int BORDER = 0xFF7C5CFF;      // section border (violet)
+    static final int VIOLET = 0xFF7C5CFF;      // buttons, same as the icon
+    static final int VIOLET_DOWN = 0xFF6446E8; // pressed button
+    static final int DISABLED = 0xFF524D73;    // greyed-out button
+    static final int TEXT_DIM = 0xCCFFFFFF;
+    static final int TEXT_FAINT = 0x99FFFFFF;
+
     private SharedPreferences prefs;
-    private Button overlayBtn, notifBtn, batteryBtn, pickBtn, accessBtn;
+    private Button overlayBtn, notifBtn, batteryBtn, accessBtn, pickBtn;
     private CheckBox notesBox, chordsBox, scalesBox;
+    private Switch appLockSwitch;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        getWindow().setStatusBarColor(0xFF1B1035);
+        getWindow().setStatusBarColor(BG);
+        getWindow().setNavigationBarColor(BG);
         prefs = Notes.prefs(this);
 
         ScrollView scroll = new ScrollView(this);
-        scroll.setBackgroundColor(0xFF12101F);
+        scroll.setBackgroundColor(BG);
         LinearLayout col = new LinearLayout(this);
         col.setOrientation(LinearLayout.VERTICAL);
-        col.setPadding(dp(24), dp(32), dp(24), dp(32));
+        col.setPadding(dp(18), dp(28), dp(18), dp(32));
         scroll.addView(col);
 
-        col.addView(text("Note Lock", 30, Color.WHITE));
-        col.addView(text("Hear a note, chord or scale and pick the right answer to get in. "
-                + "In an emergency, swipe up from the bottom to skip.", 15, 0xB3FFFFFF));
+        // ---------------------------------------------------- header
+        LinearLayout header = new LinearLayout(this);
+        header.setOrientation(LinearLayout.HORIZONTAL);
+        header.setGravity(Gravity.CENTER_VERTICAL);
+        ImageView logo = new ImageView(this);
+        logo.setImageResource(R.drawable.ic_notelock);
+        logo.setImageTintList(ColorStateList.valueOf(0xFFB9A8FF));
+        header.addView(logo, new LinearLayout.LayoutParams(dp(44), dp(44)));
+        TextView name = text("Note Lock", 32, Color.WHITE);
+        name.setTypeface(Typeface.create("sans-serif-black", Typeface.BOLD));
+        name.setPadding(dp(8), 0, 0, 0);
+        header.addView(name);
+        col.addView(header);
 
-        // ---------------------------------------------------- what to identify
-        col.addView(text("What to identify", 18, Color.WHITE), margins(28));
-        col.addView(text("Turn on any or all. Each question picks one at random, on a random key.",
-                13, 0x99FFFFFF));
-
-        notesBox = new CheckBox(this);
-        col.addView(typeRow(notesBox, "Notes", Notes.notesOn(prefs), Notes.KEY_NOTES_ON,
-                new String[]{"Easy (no sharps)", "Hard (with sharps)"},
-                Notes.notesLevel(prefs), Notes.KEY_NOTES_LEVEL), margins(8));
-
-        chordsBox = new CheckBox(this);
-        col.addView(typeRow(chordsBox, "Chords", prefs.getBoolean(Notes.KEY_CHORDS_ON, false),
-                Notes.KEY_CHORDS_ON,
-                new String[]{"Easy (triads)", "Normal (sus & 7th chords)", "Hard (extended chords)"},
-                prefs.getInt(Notes.KEY_CHORDS_LEVEL, 0), Notes.KEY_CHORDS_LEVEL), margins(4));
-
-        scalesBox = new CheckBox(this);
-        col.addView(typeRow(scalesBox, "Scales", prefs.getBoolean(Notes.KEY_SCALES_ON, false),
-                Notes.KEY_SCALES_ON,
-                new String[]{"Easy (diatonic)", "Normal (pentatonic & blues)", "Hard (7 modes)"},
-                prefs.getInt(Notes.KEY_SCALES_LEVEL, 0), Notes.KEY_SCALES_LEVEL), margins(4));
-
-        CheckBox nameKey = new CheckBox(this);
-        nameKey.setText("Name the key too (e.g. \"D Minor\" instead of \"Minor\")");
-        nameKey.setTextColor(Color.WHITE);
-        nameKey.setChecked(prefs.getBoolean(Notes.KEY_NAME_KEY, false));
-        nameKey.setOnCheckedChangeListener((b, on) -> prefs.edit().putBoolean(Notes.KEY_NAME_KEY, on).apply());
-        col.addView(nameKey, margins(8));
-        col.addView(text("For chords and scales. Off: name only the type. On: name the root note too.",
-                13, 0x99FFFFFF));
-
-        // ---------------------------------------------------- where to use it
-        col.addView(text("Where to use it", 18, Color.WHITE), margins(28));
-
-        Switch lockScreen = sw("On the lock screen", Notes.isEnabled(this));
-        lockScreen.setOnCheckedChangeListener((b, on) -> setLockScreen(on));
-        col.addView(lockScreen, margins(8));
-
-        Switch appLock = sw("Before the apps I choose", prefs.getBoolean(Notes.KEY_APPLOCK_ON, true));
-        appLock.setOnCheckedChangeListener((b, on) -> {
-            prefs.edit().putBoolean(Notes.KEY_APPLOCK_ON, on).apply();
-            if (on && !appLockOn()) {
-                Toast.makeText(this, "Also turn on Note Lock in Accessibility (button below)",
-                        Toast.LENGTH_LONG).show();
-            }
-        });
-        col.addView(appLock, margins(12));
-
-        pickBtn = button(v -> startActivity(new Intent(this, AppPickerActivity.class)));
-        col.addView(pickBtn, margins(8));
-
-        accessBtn = button(v -> startActivity(new Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS)));
-        col.addView(accessBtn, margins(8));
-
-        Button restricted = button(v -> startActivity(new Intent(
-                Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
-                Uri.parse("package:" + getPackageName()))));
-        restricted.setText("Can't turn it on? Open App info");
-        col.addView(restricted, margins(8));
-        col.addView(text("If Android says the setting is restricted: tap the button above, "
-                + "tap ⋮ (top right) → \"Allow restricted settings\", then try again. "
-                + "Android will warn that the app can see your screen. Note Lock only checks "
-                + "which app opened, and it has no internet access.", 13, 0x99FFFFFF), margins(4));
+        // ---------------------------------------------------- intro
+        LinearLayout intro = card(col, null);
+        intro.addView(text("Hear a note, chord or scale and pick the right answer to get in. "
+                + "In an emergency, swipe up from the bottom to skip.", 15, TEXT_DIM));
 
         // ---------------------------------------------------- permissions
-        col.addView(text("Permissions", 18, Color.WHITE), margins(28));
-
+        LinearLayout perms = card(col, "Permissions");
         overlayBtn = button(v -> startActivity(new Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
                 Uri.parse("package:" + getPackageName()))));
-        col.addView(overlayBtn, margins(8));
+        perms.addView(overlayBtn, margins(4));
 
         notifBtn = button(v -> {
             if (Build.VERSION.SDK_INT >= 33) {
                 requestPermissions(new String[]{Manifest.permission.POST_NOTIFICATIONS}, 1);
             }
         });
-        col.addView(notifBtn, margins(8));
+        perms.addView(notifBtn, margins(8));
 
         batteryBtn = button(v -> startActivity(new Intent(
                 Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS,
                 Uri.parse("package:" + getPackageName()))));
-        col.addView(batteryBtn, margins(8));
+        perms.addView(batteryBtn, margins(8));
 
+        accessBtn = button(v -> startActivity(new Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS)));
+        perms.addView(accessBtn, margins(8));
+
+        TextView info = text("Can't turn on app lock? Open App info", 14, 0xFFC9BDFF);
+        info.setPaintFlags(info.getPaintFlags() | Paint.UNDERLINE_TEXT_FLAG);
+        Drawable icon = getDrawable(android.R.drawable.ic_dialog_info);
+        if (icon != null) {
+            icon = icon.mutate();
+            icon.setTint(0xFFC9BDFF);
+            icon.setBounds(0, 0, dp(18), dp(18));
+            info.setCompoundDrawablesRelative(icon, null, null, null);
+            info.setCompoundDrawablePadding(dp(6));
+        }
+        info.setGravity(Gravity.CENTER_VERTICAL);
+        info.setPadding(0, dp(6), 0, dp(6));
+        info.setOnClickListener(v -> startActivity(new Intent(
+                Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
+                Uri.parse("package:" + getPackageName()))));
+        perms.addView(info, margins(12));
+        perms.addView(text("If Android says the setting is restricted: open App info, "
+                + "tap ⋮ (top right) → \"Allow restricted settings\", then try again. "
+                + "Android will warn that the app can see your screen. Note Lock only checks "
+                + "which app opened, and it has no internet access.", 13, TEXT_FAINT));
+
+        // ---------------------------------------------------- what to identify
+        LinearLayout what = card(col, "What to identify");
+        what.addView(text("Turn on any or all. Each question picks one at random, on a random key.",
+                13, TEXT_FAINT));
+
+        notesBox = new CheckBox(this);
+        chordsBox = new CheckBox(this);
+        scalesBox = new CheckBox(this);
+        what.addView(typeRow(notesBox, "Notes", Notes.notesOn(prefs), Notes.KEY_NOTES_ON,
+                new String[]{"Easy (no sharps)", "Hard (with sharps)"},
+                Notes.notesLevel(prefs), Notes.KEY_NOTES_LEVEL), margins(10));
+        what.addView(typeRow(chordsBox, "Chords", prefs.getBoolean(Notes.KEY_CHORDS_ON, false),
+                Notes.KEY_CHORDS_ON,
+                new String[]{"Easy (triads)", "Normal (sus & 7th chords)", "Hard (extended chords)"},
+                prefs.getInt(Notes.KEY_CHORDS_LEVEL, 0), Notes.KEY_CHORDS_LEVEL), margins(4));
+        what.addView(typeRow(scalesBox, "Scales", prefs.getBoolean(Notes.KEY_SCALES_ON, false),
+                Notes.KEY_SCALES_ON,
+                new String[]{"Easy (diatonic)", "Normal (pentatonic & blues)", "Hard (7 modes)"},
+                prefs.getInt(Notes.KEY_SCALES_LEVEL, 0), Notes.KEY_SCALES_LEVEL), margins(4));
+
+        CheckBox nameKey = check("Name the key too (e.g. \"D Minor\" instead of \"Minor\")",
+                prefs.getBoolean(Notes.KEY_NAME_KEY, false));
+        nameKey.setOnCheckedChangeListener((b, on) -> prefs.edit().putBoolean(Notes.KEY_NAME_KEY, on).apply());
+        what.addView(nameKey, margins(10));
+        what.addView(text("For chords and scales. Off: name only the type. On: name the root note too.",
+                13, TEXT_FAINT));
+
+        // ---------------------------------------------------- where to use it
+        LinearLayout where = card(col, "Where to use it");
+        Switch lockScreen = sw("On the lock screen", Notes.isEnabled(this));
+        lockScreen.setOnCheckedChangeListener((b, on) -> setLockScreen(on));
+        where.addView(lockScreen, margins(4));
+
+        appLockSwitch = sw("Before the apps I choose", prefs.getBoolean(Notes.KEY_APPLOCK_ON, true));
+        appLockSwitch.setOnCheckedChangeListener((b, on) -> {
+            prefs.edit().putBoolean(Notes.KEY_APPLOCK_ON, on).apply();
+            pickBtn.setEnabled(on);
+            if (on && !appLockOn()) {
+                Toast.makeText(this, "Also turn on app lock under Permissions",
+                        Toast.LENGTH_LONG).show();
+            }
+        });
+        where.addView(appLockSwitch, margins(14));
+
+        pickBtn = button(v -> startActivity(new Intent(this, AppPickerActivity.class)));
+        pickBtn.setEnabled(appLockSwitch.isChecked());
+        where.addView(pickBtn, margins(8));
+
+        // ---------------------------------------------------- try it
+        LinearLayout tryCard = card(col, null);
         Button test = button(v -> {
             if (!Settings.canDrawOverlays(this)) {
                 Toast.makeText(this, "Allow 'Display over other apps' first", Toast.LENGTH_LONG).show();
@@ -141,14 +184,15 @@ public class MainActivity extends Activity {
             startActivity(new Intent(this, LockActivity.class));
         });
         test.setText("Try it now");
-        col.addView(test, margins(28));
+        tryCard.addView(test);
 
-        col.addView(text("Tips\n"
-                + "• Set Android's own screen lock to \"Swipe\" or \"None\" so Note Lock is the "
+        // ---------------------------------------------------- tips
+        LinearLayout tips = card(col, "Tips");
+        tips.addView(text("• Set Android's own screen lock to \"Swipe\" or \"None\" so Note Lock is the "
                 + "only thing you unlock. If you keep a PIN, Android will ask for it after the quiz.\n"
                 + "• On Honor phones: Settings → Apps → App launch → Note Lock → turn off "
                 + "\"Manage automatically\" and turn on all three switches. Also lock Note Lock in Recents.\n"
-                + "• Sound plays through media volume. Turn it up!", 14, 0x99FFFFFF), margins(28));
+                + "• Sound plays through media volume. Turn it up!", 14, TEXT_DIM));
 
         setContentView(scroll);
     }
@@ -160,6 +204,27 @@ public class MainActivity extends Activity {
         if (Notes.isEnabled(this) && Settings.canDrawOverlays(this)) LockService.start(this);
     }
 
+    private void refresh() {
+        boolean overlay = Settings.canDrawOverlays(this);
+        overlayBtn.setText((overlay ? "✓ " : "") + "Display over other apps");
+
+        boolean notif = Build.VERSION.SDK_INT < 33
+                || checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) == PackageManager.PERMISSION_GRANTED;
+        notifBtn.setText((notif ? "✓ " : "") + "Notifications (keeps it running)");
+        notifBtn.setEnabled(!notif);
+
+        PowerManager pm = getSystemService(PowerManager.class);
+        boolean battery = pm != null && pm.isIgnoringBatteryOptimizations(getPackageName());
+        batteryBtn.setText((battery ? "✓ " : "") + "Don't let battery saver stop it");
+        batteryBtn.setEnabled(!battery);
+
+        accessBtn.setText(appLockOn() ? "✓ App lock (Accessibility) is on" : "App lock (Accessibility)");
+
+        int n = Notes.lockedApps(this).size();
+        pickBtn.setText("Choose apps to lock (" + n + " selected)");
+        pickBtn.setEnabled(appLockSwitch.isChecked());
+    }
+
     /** One row: [x] Notes   [Easy ▾] */
     private View typeRow(CheckBox box, String label, boolean on, String onKey,
                          String[] levels, int level, String levelKey) {
@@ -167,11 +232,9 @@ public class MainActivity extends Activity {
         row.setOrientation(LinearLayout.HORIZONTAL);
         row.setGravity(Gravity.CENTER_VERTICAL);
 
-        box.setText(label);
-        box.setTextColor(Color.WHITE);
+        styleCheck(box, label, on);
         box.setTextSize(TypedValue.COMPLEX_UNIT_SP, 17);
-        box.setChecked(on);
-        row.addView(box, new LinearLayout.LayoutParams(dp(110), LinearLayout.LayoutParams.WRAP_CONTENT));
+        row.addView(box, new LinearLayout.LayoutParams(dp(104), LinearLayout.LayoutParams.WRAP_CONTENT));
 
         Spinner spinner = new Spinner(this);
         ArrayAdapter<String> adapter = new ArrayAdapter<String>(this,
@@ -179,7 +242,7 @@ public class MainActivity extends Activity {
             @Override
             public View getView(int pos, View convert, ViewGroup parent) {
                 TextView t = (TextView) super.getView(pos, convert, parent);
-                t.setTextColor(Color.WHITE);
+                t.setTextColor(spinnerEnabled(parent) ? Color.WHITE : TEXT_FAINT);
                 return t;
             }
         };
@@ -187,6 +250,7 @@ public class MainActivity extends Activity {
         spinner.setAdapter(adapter);
         spinner.setSelection(Math.max(0, Math.min(levels.length - 1, level)));
         spinner.setEnabled(on);
+        spinner.setBackgroundTintList(ColorStateList.valueOf(0xFFC9BDFF));
         spinner.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
             @Override
             public void onItemSelected(AdapterView<?> parent, View view, int pos, long id) {
@@ -206,8 +270,13 @@ public class MainActivity extends Activity {
             }
             prefs.edit().putBoolean(onKey, checked).apply();
             spinner.setEnabled(checked);
+            adapter.notifyDataSetChanged();
         });
         return row;
+    }
+
+    private static boolean spinnerEnabled(ViewGroup parent) {
+        return parent == null || parent.isEnabled();
     }
 
     private void setLockScreen(boolean on) {
@@ -219,26 +288,6 @@ public class MainActivity extends Activity {
         }
         prefs.edit().putBoolean(Notes.KEY_ENABLED, on).apply();
         if (on) LockService.start(this); else LockService.stop(this);
-    }
-
-    private void refresh() {
-        boolean overlay = Settings.canDrawOverlays(this);
-        overlayBtn.setText((overlay ? "✓ " : "1. ") + "Display over other apps");
-
-        boolean notif = Build.VERSION.SDK_INT < 33
-                || checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) == PackageManager.PERMISSION_GRANTED;
-        notifBtn.setText((notif ? "✓ " : "2. ") + "Notifications (keeps it running)");
-        notifBtn.setEnabled(!notif);
-
-        PowerManager pm = getSystemService(PowerManager.class);
-        boolean battery = pm != null && pm.isIgnoringBatteryOptimizations(getPackageName());
-        batteryBtn.setText((battery ? "✓ " : "3. ") + "Don't let battery saver stop it");
-        batteryBtn.setEnabled(!battery);
-
-        int n = Notes.lockedApps(this).size();
-        pickBtn.setText("Choose apps to lock (" + n + " selected)");
-        accessBtn.setText((appLockOn() ? "✓ App lock is on" : "Turn on app lock")
-                + " (Accessibility → Note Lock)");
     }
 
     private boolean appLockOn() {
@@ -253,20 +302,81 @@ public class MainActivity extends Activity {
         return false;
     }
 
+    // ---------------------------------------------------------------- styling helpers
+
+    /** A bordered section card, optionally with a heading. Returns its content column. */
+    private LinearLayout card(LinearLayout parent, String heading) {
+        LinearLayout c = new LinearLayout(this);
+        c.setOrientation(LinearLayout.VERTICAL);
+        c.setPadding(dp(16), dp(14), dp(16), dp(16));
+        GradientDrawable bg = new GradientDrawable();
+        bg.setColor(CARD);
+        bg.setCornerRadius(dp(16));
+        bg.setStroke(dp(2), BORDER);
+        c.setBackground(bg);
+        if (heading != null) {
+            TextView h = text(heading, 19, Color.WHITE);
+            h.setTypeface(Typeface.create("sans-serif-medium", Typeface.BOLD));
+            h.setPadding(0, 0, 0, dp(6));
+            c.addView(h);
+        }
+        parent.addView(c, margins(16));
+        return c;
+    }
+
+    private Button button(View.OnClickListener l) {
+        Button b = new Button(this);
+        b.setAllCaps(false);
+        b.setTextSize(TypedValue.COMPLEX_UNIT_SP, 15);
+        b.setTextColor(new ColorStateList(
+                new int[][]{{-android.R.attr.state_enabled}, {}},
+                new int[]{0xB3FFFFFF, Color.WHITE}));
+        StateListDrawable states = new StateListDrawable();
+        states.addState(new int[]{-android.R.attr.state_enabled}, rounded(DISABLED));
+        states.addState(new int[]{android.R.attr.state_pressed}, rounded(VIOLET_DOWN));
+        states.addState(new int[]{}, rounded(VIOLET));
+        b.setBackground(states);
+        b.setStateListAnimator(null);
+        b.setMinHeight(dp(50));
+        b.setOnClickListener(l);
+        return b;
+    }
+
+    private GradientDrawable rounded(int color) {
+        GradientDrawable d = new GradientDrawable();
+        d.setColor(color);
+        d.setCornerRadius(dp(14));
+        return d;
+    }
+
     private Switch sw(String label, boolean on) {
         Switch s = new Switch(this);
         s.setText(label);
         s.setTextColor(Color.WHITE);
         s.setTextSize(TypedValue.COMPLEX_UNIT_SP, 17);
         s.setChecked(on);
+        s.setThumbTintList(new ColorStateList(
+                new int[][]{{android.R.attr.state_checked}, {}},
+                new int[]{0xFFB9A8FF, 0xFFDDDDE8}));
+        s.setTrackTintList(new ColorStateList(
+                new int[][]{{android.R.attr.state_checked}, {}},
+                new int[]{VIOLET, 0xFF6E6A8A}));
         return s;
     }
 
-    private Button button(View.OnClickListener l) {
-        Button b = new Button(this);
-        b.setAllCaps(false);
-        b.setOnClickListener(l);
-        return b;
+    private CheckBox check(String label, boolean on) {
+        CheckBox c = new CheckBox(this);
+        styleCheck(c, label, on);
+        return c;
+    }
+
+    private void styleCheck(CheckBox c, String label, boolean on) {
+        c.setText(label);
+        c.setTextColor(Color.WHITE);
+        c.setChecked(on);
+        c.setButtonTintList(new ColorStateList(
+                new int[][]{{android.R.attr.state_checked}, {}},
+                new int[]{0xFFB9A8FF, 0xFFC8C4DC}));
     }
 
     private TextView text(String s, int sp, int color) {

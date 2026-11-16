@@ -54,12 +54,12 @@ public class AppPickerActivity extends Activity {
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        getWindow().setStatusBarColor(0xFF1B1035);
+        getWindow().setStatusBarColor(MainActivity.BG);
         locked = Notes.lockedApps(this);
 
         LinearLayout col = new LinearLayout(this);
         col.setOrientation(LinearLayout.VERTICAL);
-        col.setBackgroundColor(0xFF12101F);
+        col.setBackgroundColor(MainActivity.BG);
         col.setPadding(dp(16), dp(24), dp(16), 0);
 
         TextView title = new TextView(this);
