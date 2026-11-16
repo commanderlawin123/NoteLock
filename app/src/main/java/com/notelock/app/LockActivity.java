@@ -50,7 +50,8 @@ public class LockActivity extends Activity {
     private final Handler handler = new Handler(Looper.getMainLooper());
     private final Button[] options = new Button[6];
 
-    private Notes.Question question;
+    private Music.Question question;
+    private final LinearLayout[] rows = new LinearLayout[3];
     private TextView feedback;
     private TextView streakView;
     private boolean played;
@@ -86,13 +87,15 @@ public class LockActivity extends Activity {
         setShowWhenLocked(screen);
         setTurnScreenOn(false); // never wake the screen; just be waiting when you turn it on
         screenLockShowing = screen;
-        if (screen) {
-            showingFor = null;
-            title.setText("Name the note to unlock");
-        } else {
-            showingFor = targetPkg;
-            title.setText("Name the note to open " + appLabel(targetPkg));
-        }
+        showingFor = screen ? null : targetPkg;
+    }
+
+    private void updateTitle() {
+        String what = question.category == Music.CAT_CHORD ? "chord"
+                : question.category == Music.CAT_SCALE ? "scale" : "note";
+        title.setText(mode == MODE_SCREEN
+                ? "Name the " + what + " to unlock"
+                : "Name the " + what + " to open " + appLabel(targetPkg));
     }
 
     private String appLabel(String pkg) {
@@ -168,13 +171,25 @@ public class LockActivity extends Activity {
     private void newQuestion() {
         busy = false;
         played = false;
-        boolean naturals = Notes.prefs(this).getBoolean(Notes.KEY_NATURALS_ONLY, false);
-        question = Notes.newQuestion(rnd, naturals);
+        question = Music.next(this, rnd);
+        int count = question.options.length;
+        int longest = 0;
+        for (String o : question.options) longest = Math.max(longest, o.length());
+        float size = longest <= 3 ? 24 : longest <= 10 ? 18 : 15;
         for (int i = 0; i < 6; i++) {
-            options[i].setText(Notes.NAMES[question.options[i]]);
-            options[i].setBackground(rounded(BTN, 18));
-            options[i].setEnabled(true);
+            Button b = options[i];
+            if (i < count) {
+                b.setVisibility(View.VISIBLE);
+                b.setText(question.options[i]);
+                b.setTextSize(TypedValue.COMPLEX_UNIT_SP, size);
+                b.setBackground(rounded(BTN, 18));
+                b.setEnabled(true);
+            } else {
+                b.setVisibility(View.INVISIBLE);
+            }
         }
+        for (int r = 0; r < 3; r++) rows[r].setVisibility(r * 2 < count ? View.VISIBLE : View.GONE);
+        updateTitle();
         feedback.setText("");
         updateStreak();
         maybeAutoPlay();
@@ -189,17 +204,16 @@ public class LockActivity extends Activity {
     }
 
     private void playNote() {
-        if (question != null) player.play(question.midi);
+        if (question != null) player.play(question.category, question.midis);
     }
 
     private void onAnswer(int index) {
         if (busy || unlocking) return;
         busy = true;
-        int picked = question.options[index];
         SharedPreferences p = Notes.prefs(this);
-        String name = Notes.NAMES[question.answer];
+        String name = question.answerLabel();
 
-        if (picked == question.answer) {
+        if (index == question.answer) {
             options[index].setBackground(rounded(GOOD, 18));
             int streak = p.getInt(Notes.KEY_STREAK, 0) + 1;
             int best = Math.max(streak, p.getInt(Notes.KEY_BEST, 0));
@@ -210,14 +224,10 @@ public class LockActivity extends Activity {
             handler.postDelayed(this::unlock, 450);
         } else {
             options[index].setBackground(rounded(BAD, 18));
-            for (int i = 0; i < 6; i++) {
-                if (question.options[i] == question.answer) {
-                    options[i].setBackground(rounded(GOOD, 18));
-                }
-            }
+            options[question.answer].setBackground(rounded(GOOD, 18));
             p.edit().putInt(Notes.KEY_STREAK, 0).apply();
             feedback.setTextColor(0xFFFFA8A3);
-            feedback.setText("That was " + name + ". Here's a new note…");
+            feedback.setText("That was " + name + ". Here's a new one…");
             shake(options[index]);
             handler.postDelayed(this::newQuestion, 1600);
         }
@@ -324,6 +334,7 @@ public class LockActivity extends Activity {
         root.addView(speaker, sp);
 
         TextView hint = text("Tap to hear it again", 13, 0x99FFFFFF);
+        hint.setContentDescription("Tap the speaker to hear it again");
         root.addView(hint);
 
         LinearLayout grid = new LinearLayout(this);
@@ -334,6 +345,7 @@ public class LockActivity extends Activity {
         for (int r = 0; r < 3; r++) {
             LinearLayout row = new LinearLayout(this);
             row.setOrientation(LinearLayout.HORIZONTAL);
+            rows[r] = row;
             for (int c = 0; c < 2; c++) {
                 final int idx = r * 2 + c;
                 Button b = new Button(this);
@@ -342,6 +354,8 @@ public class LockActivity extends Activity {
                 b.setTextSize(TypedValue.COMPLEX_UNIT_SP, 24);
                 b.setBackground(rounded(BTN, 18));
                 b.setOnClickListener(v -> onAnswer(idx));
+                b.setMaxLines(2);
+                b.setPadding(dp(6), 0, dp(6), 0);
                 LinearLayout.LayoutParams bp = new LinearLayout.LayoutParams(0, dp(64), 1f);
                 bp.setMargins(dp(6), dp(6), dp(6), dp(6));
                 row.addView(b, bp);

@@ -43,6 +43,7 @@ public class AppLockService extends AccessibilityService {
         if (!pkg.equals(unlockedPkg)) unlockedPkg = null;
         if (unlockedPkg != null) return;
 
+        if (!Notes.prefs(this).getBoolean(Notes.KEY_APPLOCK_ON, true)) return;
         Set<String> locked = Notes.lockedApps(this);
         if (!locked.contains(pkg)) return;
         if (pkg.equals(LockActivity.showingFor)) return;

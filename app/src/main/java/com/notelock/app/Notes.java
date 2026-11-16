@@ -70,6 +70,23 @@ public final class Notes {
     }
 
     static final String KEY_LOCKED_APPS = "locked_apps";
+    static final String KEY_APPLOCK_ON = "applock_on";
+    static final String KEY_NOTES_ON = "q_notes";
+    static final String KEY_NOTES_LEVEL = "q_notes_level";
+    static final String KEY_CHORDS_ON = "q_chords";
+    static final String KEY_CHORDS_LEVEL = "q_chords_level";
+    static final String KEY_SCALES_ON = "q_scales";
+    static final String KEY_SCALES_LEVEL = "q_scales_level";
+    static final String KEY_NAME_KEY = "name_key";
+
+    static boolean notesOn(SharedPreferences p) {
+        return p.getBoolean(KEY_NOTES_ON, true);
+    }
+
+    /** 0 = easy (no sharps), 1 = hard. Carries over the old "easy mode" setting. */
+    static int notesLevel(SharedPreferences p) {
+        return p.getInt(KEY_NOTES_LEVEL, p.getBoolean(KEY_NATURALS_ONLY, false) ? 0 : 1);
+    }
 
     public static Set<String> lockedApps(Context c) {
         return new HashSet<>(prefs(c).getStringSet(KEY_LOCKED_APPS, new HashSet<>()));
