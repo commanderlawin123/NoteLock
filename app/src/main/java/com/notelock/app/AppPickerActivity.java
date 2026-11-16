@@ -64,12 +64,12 @@ public class AppPickerActivity extends Activity {
 
         TextView title = new TextView(this);
         title.setText("Choose apps to lock");
-        title.setTextColor(Color.WHITE);
+        title.setTextColor(MainActivity.TEXT);
         title.setTextSize(TypedValue.COMPLEX_UNIT_SP, 24);
         col.addView(title);
 
         status = new TextView(this);
-        status.setTextColor(0xB3FFFFFF);
+        status.setTextColor(MainActivity.TEXT_DIM);
         status.setText("Loading your apps…");
         status.setPadding(0, dp(4), 0, dp(8));
         col.addView(status);
@@ -77,8 +77,8 @@ public class AppPickerActivity extends Activity {
         EditText search = new EditText(this);
         search.setHint("Search apps");
         search.setSingleLine(true);
-        search.setTextColor(Color.WHITE);
-        search.setHintTextColor(0x80FFFFFF);
+        search.setTextColor(MainActivity.TEXT);
+        search.setHintTextColor(MainActivity.TEXT_FAINT);
         search.addTextChangedListener(new TextWatcher() {
             @Override public void beforeTextChanged(CharSequence s, int a, int b, int c) {}
             @Override public void onTextChanged(CharSequence s, int a, int b, int c) {}
@@ -165,7 +165,7 @@ public class AppPickerActivity extends Activity {
                 icon = new ImageView(AppPickerActivity.this);
                 row.addView(icon, new LinearLayout.LayoutParams(dp(40), dp(40)));
                 label = new TextView(AppPickerActivity.this);
-                label.setTextColor(Color.WHITE);
+                label.setTextColor(MainActivity.TEXT);
                 label.setTextSize(TypedValue.COMPLEX_UNIT_SP, 16);
                 label.setPadding(dp(14), 0, dp(8), 0);
                 row.addView(label, new LinearLayout.LayoutParams(0,

@@ -25,12 +25,12 @@ import java.util.Random;
 
 /** The lock screen: play a note, pick it from six buttons, or swipe up to skip. */
 public class LockActivity extends Activity {
-    private static final int BG_TOP = 0xFF1B1035;
-    private static final int BG_BOTTOM = 0xFF0B0B14;
-    private static final int BTN = 0xFF2A2350;
+    private static final int BG_TOP = MainActivity.CARD;     // Muted Plum
+    private static final int BG_BOTTOM = MainActivity.BG;    // Void Purple
+    private static final int BTN = 0xFF3A2452;               // plum answer buttons
     private static final int GOOD = 0xFF2E9E5B;
-    private static final int BAD = 0xFFC2413B;
-    private static final int ACCENT = 0xFF7C5CFF;
+    private static final int BAD = MainActivity.ACCENT;      // Hot Magenta
+    private static final int ACCENT = MainActivity.VIOLET;   // Overdrive Violet speaker
 
     static final String EXTRA_MODE = "mode";
     static final String EXTRA_PKG = "pkg";
@@ -226,7 +226,7 @@ public class LockActivity extends Activity {
             options[index].setBackground(rounded(BAD, 18));
             options[question.answer].setBackground(rounded(GOOD, 18));
             p.edit().putInt(Notes.KEY_STREAK, 0).apply();
-            feedback.setTextColor(0xFFFFA8A3);
+            feedback.setTextColor(0xFFFF7AA2);
             feedback.setText("That was " + name + ". Here's a new one…");
             shake(options[index]);
             handler.postDelayed(this::newQuestion, 1600);
@@ -301,7 +301,7 @@ public class LockActivity extends Activity {
         TextClock clock = new TextClock(this);
         clock.setFormat12Hour("h:mm");
         clock.setFormat24Hour("HH:mm");
-        clock.setTextColor(Color.WHITE);
+        clock.setTextColor(MainActivity.TEXT);
         clock.setTextSize(TypedValue.COMPLEX_UNIT_SP, 64);
         clock.setGravity(Gravity.CENTER);
         root.addView(clock);
@@ -309,14 +309,14 @@ public class LockActivity extends Activity {
         TextClock date = new TextClock(this);
         date.setFormat12Hour("EEEE, MMMM d");
         date.setFormat24Hour("EEEE, MMMM d");
-        date.setTextColor(0xB3FFFFFF);
+        date.setTextColor(MainActivity.TEXT_DIM);
         date.setTextSize(TypedValue.COMPLEX_UNIT_SP, 16);
         date.setGravity(Gravity.CENTER);
         root.addView(date);
 
         root.addView(space(1f));
 
-        title = text("Name the note to unlock", 20, Color.WHITE);
+        title = text("Name the note to unlock", 20, MainActivity.TEXT);
         root.addView(title);
 
         Button speaker = new Button(this);
@@ -333,7 +333,7 @@ public class LockActivity extends Activity {
         sp.bottomMargin = dp(8);
         root.addView(speaker, sp);
 
-        TextView hint = text("Tap to hear it again", 13, 0x99FFFFFF);
+        TextView hint = text("Tap to hear it again", 13, MainActivity.TEXT_FAINT);
         hint.setContentDescription("Tap the speaker to hear it again");
         root.addView(hint);
 
@@ -350,7 +350,7 @@ public class LockActivity extends Activity {
                 final int idx = r * 2 + c;
                 Button b = new Button(this);
                 b.setAllCaps(false);
-                b.setTextColor(Color.WHITE);
+                b.setTextColor(MainActivity.TEXT);
                 b.setTextSize(TypedValue.COMPLEX_UNIT_SP, 24);
                 b.setBackground(rounded(BTN, 18));
                 b.setOnClickListener(v -> onAnswer(idx));
@@ -365,20 +365,20 @@ public class LockActivity extends Activity {
         }
         root.addView(grid, gp);
 
-        feedback = text("", 16, Color.WHITE);
+        feedback = text("", 16, MainActivity.TEXT);
         LinearLayout.LayoutParams fp = new LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT, dp(32));
         fp.topMargin = dp(12);
         root.addView(feedback, fp);
 
-        streakView = text("", 13, 0x80FFFFFF);
+        streakView = text("", 13, MainActivity.TEXT_FAINT);
         root.addView(streakView);
 
         root.addView(space(1f));
 
-        TextView arrow = text("︿", 24, 0xCCFFFFFF);
+        TextView arrow = text("︿", 24, MainActivity.TEXT_DIM);
         root.addView(arrow);
-        TextView swipe = text("Swipe up to skip (emergency)", 14, 0xCCFFFFFF);
+        TextView swipe = text("Swipe up to skip (emergency)", 14, MainActivity.TEXT_DIM);
         root.addView(swipe);
         return root;
     }
@@ -402,6 +402,7 @@ public class LockActivity extends Activity {
         GradientDrawable d = new GradientDrawable();
         d.setColor(color);
         d.setCornerRadius(dp(radiusDp));
+        if (color == BTN) d.setStroke(dp(1), 0x99B026FF);
         return d;
     }
 

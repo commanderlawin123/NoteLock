@@ -37,14 +37,17 @@ import android.widget.Toast;
 /** Settings: permissions, what to identify, where to use it, and a test button. */
 public class MainActivity extends Activity {
     // Palette (change these to restyle the whole screen)
-    static final int BG = 0xFF2D2A47;          // soft indigo background
-    static final int CARD = 0xFF3A3659;        // section card
-    static final int BORDER = 0xFF7C5CFF;      // section border (violet)
-    static final int VIOLET = 0xFF7C5CFF;      // buttons, same as the icon
-    static final int VIOLET_DOWN = 0xFF6446E8; // pressed button
-    static final int DISABLED = 0xFF524D73;    // greyed-out button
-    static final int TEXT_DIM = 0xCCFFFFFF;
-    static final int TEXT_FAINT = 0x99FFFFFF;
+    static final int BG = 0xFF180D21;          // Void Purple: main background
+    static final int CARD = 0xFF2D1B3E;        // Muted Plum: section panels
+    static final int BORDER = 0xFFB026FF;      // Overdrive Violet: section border
+    static final int VIOLET = 0xFFB026FF;      // Overdrive Violet: buttons, selected states
+    static final int VIOLET_DOWN = 0xFF8A1DCC; // pressed button
+    static final int DISABLED = 0xFF45305A;    // greyed-out button
+    static final int ACCENT = 0xFFFF0055;      // Hot Magenta
+    static final int LIGHT = 0xFFD9A3FF;       // light violet for links and icons
+    static final int TEXT = 0xFFF5F5F5;        // Soft Frost
+    static final int TEXT_DIM = 0xCCF5F5F5;
+    static final int TEXT_FAINT = 0x99F5F5F5;
 
     private SharedPreferences prefs;
     private Button overlayBtn, notifBtn, batteryBtn, accessBtn, pickBtn;
@@ -71,9 +74,9 @@ public class MainActivity extends Activity {
         header.setGravity(Gravity.CENTER_VERTICAL);
         ImageView logo = new ImageView(this);
         logo.setImageResource(R.drawable.ic_notelock);
-        logo.setImageTintList(ColorStateList.valueOf(0xFFB9A8FF));
+        logo.setImageTintList(ColorStateList.valueOf(VIOLET));
         header.addView(logo, new LinearLayout.LayoutParams(dp(44), dp(44)));
-        TextView name = text("Note Lock", 32, Color.WHITE);
+        TextView name = text("Note Lock", 32, TEXT);
         name.setTypeface(Typeface.create("sans-serif-black", Typeface.BOLD));
         name.setPadding(dp(8), 0, 0, 0);
         header.addView(name);
@@ -105,12 +108,12 @@ public class MainActivity extends Activity {
         accessBtn = button(v -> startActivity(new Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS)));
         perms.addView(accessBtn, margins(8));
 
-        TextView info = text("Can't turn on app lock? Open App info", 14, 0xFFC9BDFF);
+        TextView info = text("Can't turn on app lock? Open App info", 14, LIGHT);
         info.setPaintFlags(info.getPaintFlags() | Paint.UNDERLINE_TEXT_FLAG);
         Drawable icon = getDrawable(android.R.drawable.ic_dialog_info);
         if (icon != null) {
             icon = icon.mutate();
-            icon.setTint(0xFFC9BDFF);
+            icon.setTint(LIGHT);
             icon.setBounds(0, 0, dp(18), dp(18));
             info.setCompoundDrawablesRelative(icon, null, null, null);
             info.setCompoundDrawablePadding(dp(6));
@@ -242,7 +245,7 @@ public class MainActivity extends Activity {
             @Override
             public View getView(int pos, View convert, ViewGroup parent) {
                 TextView t = (TextView) super.getView(pos, convert, parent);
-                t.setTextColor(spinnerEnabled(parent) ? Color.WHITE : TEXT_FAINT);
+                t.setTextColor(spinnerEnabled(parent) ? TEXT : TEXT_FAINT);
                 return t;
             }
         };
@@ -250,7 +253,7 @@ public class MainActivity extends Activity {
         spinner.setAdapter(adapter);
         spinner.setSelection(Math.max(0, Math.min(levels.length - 1, level)));
         spinner.setEnabled(on);
-        spinner.setBackgroundTintList(ColorStateList.valueOf(0xFFC9BDFF));
+        spinner.setBackgroundTintList(ColorStateList.valueOf(LIGHT));
         spinner.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
             @Override
             public void onItemSelected(AdapterView<?> parent, View view, int pos, long id) {
@@ -315,7 +318,7 @@ public class MainActivity extends Activity {
         bg.setStroke(dp(2), BORDER);
         c.setBackground(bg);
         if (heading != null) {
-            TextView h = text(heading, 19, Color.WHITE);
+            TextView h = text(heading, 19, TEXT);
             h.setTypeface(Typeface.create("sans-serif-medium", Typeface.BOLD));
             h.setPadding(0, 0, 0, dp(6));
             c.addView(h);
@@ -330,7 +333,7 @@ public class MainActivity extends Activity {
         b.setTextSize(TypedValue.COMPLEX_UNIT_SP, 15);
         b.setTextColor(new ColorStateList(
                 new int[][]{{-android.R.attr.state_enabled}, {}},
-                new int[]{0xB3FFFFFF, Color.WHITE}));
+                new int[]{0xB3F5F5F5, TEXT}));
         StateListDrawable states = new StateListDrawable();
         states.addState(new int[]{-android.R.attr.state_enabled}, rounded(DISABLED));
         states.addState(new int[]{android.R.attr.state_pressed}, rounded(VIOLET_DOWN));
@@ -352,15 +355,15 @@ public class MainActivity extends Activity {
     private Switch sw(String label, boolean on) {
         Switch s = new Switch(this);
         s.setText(label);
-        s.setTextColor(Color.WHITE);
+        s.setTextColor(TEXT);
         s.setTextSize(TypedValue.COMPLEX_UNIT_SP, 17);
         s.setChecked(on);
         s.setThumbTintList(new ColorStateList(
                 new int[][]{{android.R.attr.state_checked}, {}},
-                new int[]{0xFFB9A8FF, 0xFFDDDDE8}));
+                new int[]{TEXT, 0xFFBDB3C7}));
         s.setTrackTintList(new ColorStateList(
                 new int[][]{{android.R.attr.state_checked}, {}},
-                new int[]{VIOLET, 0xFF6E6A8A}));
+                new int[]{VIOLET, 0xFF5A4670}));
         return s;
     }
 
@@ -372,11 +375,11 @@ public class MainActivity extends Activity {
 
     private void styleCheck(CheckBox c, String label, boolean on) {
         c.setText(label);
-        c.setTextColor(Color.WHITE);
+        c.setTextColor(TEXT);
         c.setChecked(on);
         c.setButtonTintList(new ColorStateList(
                 new int[][]{{android.R.attr.state_checked}, {}},
-                new int[]{0xFFB9A8FF, 0xFFC8C4DC}));
+                new int[]{VIOLET, 0xFFBDB3C7}));
     }
 
     private TextView text(String s, int sp, int color) {
