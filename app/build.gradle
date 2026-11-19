@@ -4,23 +4,33 @@ plugins {
 
 android {
     namespace 'com.notelock.app'
-    compileSdk 35
+    compileSdk 36
 
     defaultConfig {
         applicationId 'com.notelock.app'
-        minSdk 27
-        targetSdk 34
-        versionCode 1
-        versionName '1.0'
+        minSdk 27          // Android 8.1 and newer
+        targetSdk 36       // Android 16 (required by Google Play for new apps)
+        versionCode 2
+        versionName '1.1'
     }
 
-    // One fixed key, so every new build installs over the previous one.
     signingConfigs {
+        // Test key (kept in the repo) for APKs you install yourself.
         notelock {
             storeFile file('notelock.keystore')
             storePassword 'notelock'
             keyAlias 'notelock'
             keyPassword 'notelock'
+        }
+        // Private upload key for Google Play. It comes from GitHub secrets, never from the repo.
+        upload {
+            def ks = System.getenv('UPLOAD_KEYSTORE_PATH')
+            if (ks) {
+                storeFile file(ks)
+                storePassword System.getenv('UPLOAD_KEYSTORE_PASSWORD')
+                keyAlias System.getenv('UPLOAD_KEY_ALIAS')
+                keyPassword System.getenv('UPLOAD_KEY_PASSWORD')
+            }
         }
     }
 
@@ -30,12 +40,20 @@ android {
         }
         release {
             minifyEnabled false
-            signingConfig signingConfigs.notelock
+            signingConfig System.getenv('UPLOAD_KEYSTORE_PATH') ? signingConfigs.upload : signingConfigs.notelock
         }
+    }
+
+    lint {
+        checkReleaseBuilds false
     }
 
     compileOptions {
         sourceCompatibility JavaVersion.VERSION_17
         targetCompatibility JavaVersion.VERSION_17
     }
+}
+
+dependencies {
+    implementation 'com.android.billingclient:billing:9.1.0'
 }

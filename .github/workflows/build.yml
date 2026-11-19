@@ -13,17 +13,40 @@ jobs:
         with:
           distribution: temurin
           java-version: '17'
+
+      # APK you install yourself (signed with the test key in the repo)
       - name: Build debug APK
         run: |
           chmod +x gradlew
           ./gradlew assembleDebug --no-daemon
-      - name: Check the APK signature
+      - name: Check the APK
         run: |
           BT=$(ls -d $ANDROID_HOME/build-tools/* | sort -V | tail -1)
-          $BT/apksigner verify --verbose --print-certs app/build/outputs/apk/debug/*.apk
-          $BT/aapt dump badging app/build/outputs/apk/debug/*.apk | grep -E "package:|sdkVersion|targetSdk|testOnly" || true
-          $BT/aapt dump xmltree app/build/outputs/apk/debug/*.apk AndroidManifest.xml | grep -i testOnly || echo "not testOnly"
+          $BT/apksigner verify --print-certs app/build/outputs/apk/debug/*.apk | head -3
+          $BT/aapt dump badging app/build/outputs/apk/debug/*.apk | grep -E "package:|sdkVersion|targetSdk" || true
       - uses: actions/upload-artifact@v4
         with:
           name: NoteLock-apk
           path: app/build/outputs/apk/debug/*.apk
+
+      # Bundle for Google Play (signed with your private upload key from GitHub secrets)
+      - name: Build Play Store bundle (AAB)
+        env:
+          UPLOAD_KEYSTORE_BASE64: ${{ secrets.UPLOAD_KEYSTORE_BASE64 }}
+          UPLOAD_KEYSTORE_PASSWORD: ${{ secrets.UPLOAD_KEYSTORE_PASSWORD }}
+          UPLOAD_KEY_PASSWORD: ${{ secrets.UPLOAD_KEY_PASSWORD }}
+          UPLOAD_KEY_ALIAS: ${{ secrets.UPLOAD_KEY_ALIAS }}
+        run: |
+          if [ -z "$UPLOAD_KEYSTORE_BASE64" ]; then
+            echo "::warning::Upload key secrets are not set yet, so no Play Store bundle was built."
+            exit 0
+          fi
+          echo "$UPLOAD_KEYSTORE_BASE64" | base64 -d > "$RUNNER_TEMP/upload.jks"
+          export UPLOAD_KEYSTORE_PATH="$RUNNER_TEMP/upload.jks"
+          ./gradlew bundleRelease --no-daemon
+          rm -f "$RUNNER_TEMP/upload.jks"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: NoteLock-play-bundle
+          path: app/build/outputs/bundle/release/*.aab
+          if-no-files-found: ignore

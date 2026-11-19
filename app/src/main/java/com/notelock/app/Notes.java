@@ -78,6 +78,7 @@ public final class Notes {
     static final String KEY_SCALES_ON = "q_scales";
     static final String KEY_SCALES_LEVEL = "q_scales_level";
     static final String KEY_NAME_KEY = "name_key";
+    static final String KEY_PRO = "pro_owned";
 
     static boolean notesOn(SharedPreferences p) {
         return p.getBoolean(KEY_NOTES_ON, true);

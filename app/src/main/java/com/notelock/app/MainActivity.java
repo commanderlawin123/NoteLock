@@ -2,7 +2,6 @@ package com.notelock.app;
 
 import android.Manifest;
 import android.app.Activity;
-import android.content.ComponentName;
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
@@ -45,14 +44,18 @@ public class MainActivity extends Activity {
     static final int DISABLED = 0xFF45305A;    // greyed-out button
     static final int ACCENT = 0xFFFF0055;      // Hot Magenta
     static final int LIGHT = 0xFFD9A3FF;       // light violet for links and icons
+    static final int ACCENT_SOFT = 0xFFFF7AA2; // soft magenta for notes that need action
     static final int TEXT = 0xFFF5F5F5;        // Soft Frost
     static final int TEXT_DIM = 0xCCF5F5F5;
     static final int TEXT_FAINT = 0x99F5F5F5;
 
     private SharedPreferences prefs;
-    private Button overlayBtn, notifBtn, batteryBtn, accessBtn, pickBtn;
+    private Button overlayBtn, notifBtn, batteryBtn, usageBtn, pickBtn, buyBtn;
     private CheckBox notesBox, chordsBox, scalesBox;
+    private Spinner chordsSpinner, scalesSpinner;
     private Switch appLockSwitch;
+    private TextView appLockNote, proText, restoreLink;
+    private Pro pro;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -105,10 +108,13 @@ public class MainActivity extends Activity {
                 Uri.parse("package:" + getPackageName()))));
         perms.addView(batteryBtn, margins(8));
 
-        accessBtn = button(v -> startActivity(new Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS)));
-        perms.addView(accessBtn, margins(8));
+        usageBtn = button(v -> openUsageAccess());
+        perms.addView(usageBtn, margins(8));
+        perms.addView(text("Optional. Only needed for \"Before the apps I choose\". It uses slightly "
+                + "more battery: while your screen is on, Note Lock checks which app is open about "
+                + "once a second. Nothing runs while the screen is off.", 13, TEXT_FAINT), margins(4));
 
-        TextView info = text("Can't turn on app lock? Open App info", 14, LIGHT);
+        TextView info = text("Can't turn a permission on? Open App info", 14, LIGHT);
         info.setPaintFlags(info.getPaintFlags() | Paint.UNDERLINE_TEXT_FLAG);
         Drawable icon = getDrawable(android.R.drawable.ic_dialog_info);
         if (icon != null) {
@@ -124,10 +130,8 @@ public class MainActivity extends Activity {
                 Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
                 Uri.parse("package:" + getPackageName()))));
         perms.addView(info, margins(12));
-        perms.addView(text("If Android says the setting is restricted: open App info, "
-                + "tap ⋮ (top right) → \"Allow restricted settings\", then try again. "
-                + "Android will warn that the app can see your screen. Note Lock only checks "
-                + "which app opened, and it has no internet access.", 13, TEXT_FAINT));
+        perms.addView(text("If Android says a setting is restricted: open App info, "
+                + "tap ⋮ (top right) → \"Allow restricted settings\", then try again.", 13, TEXT_FAINT));
 
         // ---------------------------------------------------- what to identify
         LinearLayout what = card(col, "What to identify");
@@ -156,6 +160,18 @@ public class MainActivity extends Activity {
         what.addView(text("For chords and scales. Off: name only the type. On: name the root note too.",
                 13, TEXT_FAINT));
 
+        // Note Lock Pro (one-time purchase) unlocks chords and scales.
+        proText = text("", 14, TEXT_DIM);
+        what.addView(proText, margins(14));
+        buyBtn = button(v -> pro.buy());
+        buyBtn.setText("Unlock chords & scales");
+        what.addView(buyBtn, margins(8));
+        restoreLink = text("Already bought it? Restore purchase", 14, LIGHT);
+        restoreLink.setPaintFlags(restoreLink.getPaintFlags() | Paint.UNDERLINE_TEXT_FLAG);
+        restoreLink.setPadding(0, dp(8), 0, dp(4));
+        restoreLink.setOnClickListener(v -> pro.restore(true));
+        what.addView(restoreLink, margins(4));
+
         // ---------------------------------------------------- where to use it
         LinearLayout where = card(col, "Where to use it");
         Switch lockScreen = sw("On the lock screen", Notes.isEnabled(this));
@@ -165,13 +181,12 @@ public class MainActivity extends Activity {
         appLockSwitch = sw("Before the apps I choose", prefs.getBoolean(Notes.KEY_APPLOCK_ON, true));
         appLockSwitch.setOnCheckedChangeListener((b, on) -> {
             prefs.edit().putBoolean(Notes.KEY_APPLOCK_ON, on).apply();
-            pickBtn.setEnabled(on);
-            if (on && !appLockOn()) {
-                Toast.makeText(this, "Also turn on app lock under Permissions",
-                        Toast.LENGTH_LONG).show();
-            }
+            refresh();
+            LockService.refresh(this);
         });
         where.addView(appLockSwitch, margins(14));
+        appLockNote = text("Turn on Usage access under Permissions first.", 13, ACCENT_SOFT);
+        where.addView(appLockNote, margins(2));
 
         pickBtn = button(v -> startActivity(new Intent(this, AppPickerActivity.class)));
         pickBtn.setEnabled(appLockSwitch.isChecked());
@@ -197,6 +212,19 @@ public class MainActivity extends Activity {
                 + "\"Manage automatically\" and turn on all three switches. Also lock Note Lock in Recents.\n"
                 + "• Sound plays through media volume. Turn it up!", 14, TEXT_DIM));
 
+        pro = new Pro(this, new Pro.Listener() {
+            @Override public void onProChanged(boolean owned) { refreshPro(); }
+            @Override public void onPrice(String price) {
+                buyBtn.setText("Unlock chords & scales — " + price);
+            }
+            @Override public void onMessage(String message) {
+                Toast.makeText(MainActivity.this, message, Toast.LENGTH_LONG).show();
+            }
+        });
+        pro.connect();
+
+        scroll.setClipToPadding(false);
+        Ui.fitSystemBars(scroll);
         setContentView(scroll);
     }
 
@@ -204,7 +232,37 @@ public class MainActivity extends Activity {
     protected void onResume() {
         super.onResume();
         refresh();
-        if (Notes.isEnabled(this) && Settings.canDrawOverlays(this)) LockService.start(this);
+        LockService.refresh(this);
+        if (pro != null) pro.restore(false);
+    }
+
+    @Override
+    protected void onDestroy() {
+        if (pro != null) pro.end();
+        super.onDestroy();
+    }
+
+    private void openUsageAccess() {
+        try {
+            startActivity(new Intent(Settings.ACTION_USAGE_ACCESS_SETTINGS,
+                    Uri.parse("package:" + getPackageName())));
+        } catch (RuntimeException e) {
+            startActivity(new Intent(Settings.ACTION_USAGE_ACCESS_SETTINGS));
+        }
+    }
+
+    private void refreshPro() {
+        boolean owned = Pro.owned(this);
+        chordsBox.setEnabled(owned);
+        scalesBox.setEnabled(owned);
+        chordsBox.setText(owned ? "Chords" : "Chords 🔒");
+        scalesBox.setText(owned ? "Scales" : "Scales 🔒");
+        chordsSpinner.setEnabled(owned && chordsBox.isChecked());
+        scalesSpinner.setEnabled(owned && scalesBox.isChecked());
+        proText.setText(owned ? "✓ Note Lock Pro is unlocked. Thank you!"
+                : "Chords and scales are part of Note Lock Pro, a one-time purchase.");
+        buyBtn.setVisibility(owned ? View.GONE : View.VISIBLE);
+        restoreLink.setVisibility(owned ? View.GONE : View.VISIBLE);
     }
 
     private void refresh() {
@@ -221,11 +279,16 @@ public class MainActivity extends Activity {
         batteryBtn.setText((battery ? "✓ " : "") + "Don't let battery saver stop it");
         batteryBtn.setEnabled(!battery);
 
-        accessBtn.setText(appLockOn() ? "✓ App lock (Accessibility) is on" : "App lock (Accessibility)");
+        boolean usage = AppWatch.hasUsageAccess(this);
+        usageBtn.setText((usage ? "✓ " : "") + "App lock: Usage access (optional)");
 
+        // "Before the apps I choose" needs Usage access first.
+        appLockSwitch.setEnabled(usage);
+        appLockNote.setVisibility(usage ? View.GONE : View.VISIBLE);
         int n = Notes.lockedApps(this).size();
         pickBtn.setText("Choose apps to lock (" + n + " selected)");
-        pickBtn.setEnabled(appLockSwitch.isChecked());
+        pickBtn.setEnabled(usage && appLockSwitch.isChecked());
+        refreshPro();
     }
 
     /** One row: [x] Notes   [Easy ▾] */
@@ -264,6 +327,8 @@ public class MainActivity extends Activity {
             public void onNothingSelected(AdapterView<?> parent) {}
         });
         row.addView(spinner, new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f));
+        if (box == chordsBox) chordsSpinner = spinner;
+        if (box == scalesBox) scalesSpinner = spinner;
 
         box.setOnCheckedChangeListener((b, checked) -> {
             if (!checked && !notesBox.isChecked() && !chordsBox.isChecked() && !scalesBox.isChecked()) {
@@ -290,19 +355,7 @@ public class MainActivity extends Activity {
                     Uri.parse("package:" + getPackageName())));
         }
         prefs.edit().putBoolean(Notes.KEY_ENABLED, on).apply();
-        if (on) LockService.start(this); else LockService.stop(this);
-    }
-
-    private boolean appLockOn() {
-        String on = Settings.Secure.getString(getContentResolver(),
-                Settings.Secure.ENABLED_ACCESSIBILITY_SERVICES);
-        if (on == null) return false;
-        String me = new ComponentName(this, AppLockService.class).flattenToString();
-        String meShort = getPackageName() + "/.AppLockService";
-        for (String s : on.split(":")) {
-            if (s.equalsIgnoreCase(me) || s.equalsIgnoreCase(meShort)) return true;
-        }
-        return false;
+        LockService.refresh(this);
     }
 
     // ---------------------------------------------------------------- styling helpers
@@ -355,7 +408,9 @@ public class MainActivity extends Activity {
     private Switch sw(String label, boolean on) {
         Switch s = new Switch(this);
         s.setText(label);
-        s.setTextColor(TEXT);
+        s.setTextColor(new ColorStateList(
+                new int[][]{{-android.R.attr.state_enabled}, {}},
+                new int[]{0x66F5F5F5, TEXT}));
         s.setTextSize(TypedValue.COMPLEX_UNIT_SP, 17);
         s.setChecked(on);
         s.setThumbTintList(new ColorStateList(
@@ -375,7 +430,9 @@ public class MainActivity extends Activity {
 
     private void styleCheck(CheckBox c, String label, boolean on) {
         c.setText(label);
-        c.setTextColor(TEXT);
+        c.setTextColor(new ColorStateList(
+                new int[][]{{-android.R.attr.state_enabled}, {}},
+                new int[]{0x66F5F5F5, TEXT}));
         c.setChecked(on);
         c.setButtonTintList(new ColorStateList(
                 new int[][]{{android.R.attr.state_checked}, {}},

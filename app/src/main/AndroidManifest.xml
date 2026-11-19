@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
-<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
 
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" />
@@ -7,12 +8,29 @@
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
     <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
     <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS" />
-    <!-- Needed to list your apps in the app-lock picker -->
-    <uses-permission android:name="android.permission.QUERY_ALL_PACKAGES" />
+    <!-- App lock: lets Note Lock see which app is open (the user turns this on in Settings) -->
+    <uses-permission
+        android:name="android.permission.PACKAGE_USAGE_STATS"
+        tools:ignore="ProtectedPermissions" />
+    <!-- In-app purchase (Note Lock Pro) -->
+    <uses-permission android:name="com.android.vending.BILLING" />
+
+    <!-- App picker: only apps that have a home-screen icon are visible to Note Lock -->
+    <queries>
+        <intent>
+            <action android:name="android.intent.action.MAIN" />
+            <category android:name="android.intent.category.LAUNCHER" />
+        </intent>
+        <intent>
+            <action android:name="android.intent.action.MAIN" />
+            <category android:name="android.intent.category.HOME" />
+        </intent>
+    </queries>
 
     <application
         android:allowBackup="true"
-        android:icon="@drawable/ic_notelock"
+        android:icon="@mipmap/ic_launcher"
+        android:roundIcon="@mipmap/ic_launcher"
         android:label="@string/app_name"
         android:theme="@android:style/Theme.DeviceDefault.NoActionBar">
 
@@ -41,25 +59,12 @@
             android:foregroundServiceType="specialUse">
             <property
                 android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
-                android:value="Shows a custom ear-training lock screen whenever the screen turns off and on." />
+                android:value="Ear-training lock screen and app lock chosen by the user: shows a music quiz when the phone is unlocked or a chosen app is opened. Runs only while the user has these features turned on." />
         </service>
 
         <activity
             android:name=".AppPickerActivity"
             android:exported="false" />
-
-        <service
-            android:name=".AppLockService"
-            android:exported="true"
-            android:label="@string/applock_label"
-            android:permission="android.permission.BIND_ACCESSIBILITY_SERVICE">
-            <intent-filter>
-                <action android:name="android.accessibilityservice.AccessibilityService" />
-            </intent-filter>
-            <meta-data
-                android:name="android.accessibilityservice"
-                android:resource="@xml/applock_service" />
-        </service>
 
         <receiver
             android:name=".BootReceiver"

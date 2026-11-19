@@ -12,31 +12,44 @@ import android.content.IntentFilter;
 import android.content.pm.ServiceInfo;
 import android.os.Build;
 import android.os.IBinder;
+import android.os.PowerManager;
 import android.provider.Settings;
 
 /**
- * Keeps running in the background and puts the note lock screen up every time
- * the screen turns off, so it is waiting when the phone is next woken.
+ * Runs in the background while the lock screen or app lock is on.
+ * - Lock screen: when the screen turns off, the quiz is put up so it's waiting next time.
+ * - App lock: while the screen is on, AppWatch checks which app is in front.
  */
 public class LockService extends Service {
     private static final String CHANNEL = "notelock_service";
 
+    private AppWatch watch;
+
     private final BroadcastReceiver screenReceiver = new BroadcastReceiver() {
         @Override
         public void onReceive(Context context, Intent intent) {
-            if (Intent.ACTION_SCREEN_OFF.equals(intent.getAction())) {
+            String a = intent.getAction();
+            if (Intent.ACTION_SCREEN_OFF.equals(a)) {
+                watch.stop(); // nothing runs while the screen is off
                 showLock(context);
+            } else if (Intent.ACTION_SCREEN_ON.equals(a)) {
+                if (AppWatch.active(context)) watch.start();
             }
         }
     };
 
-    public static void start(Context c) {
-        Intent i = new Intent(c, LockService.class);
-        c.startForegroundService(i);
+    /** Should the background service be running at all? */
+    static boolean shouldRun(Context c) {
+        return Notes.isEnabled(c) || AppWatch.active(c);
     }
 
-    public static void stop(Context c) {
-        c.stopService(new Intent(c, LockService.class));
+    /** Start or stop the service to match the current settings. */
+    public static void refresh(Context c) {
+        if (shouldRun(c)) {
+            c.startForegroundService(new Intent(c, LockService.class));
+        } else {
+            c.stopService(new Intent(c, LockService.class));
+        }
     }
 
     static void showLock(Context c) {
@@ -52,6 +65,7 @@ public class LockService extends Service {
     @Override
     public void onCreate() {
         super.onCreate();
+        watch = new AppWatch(this);
         NotificationManager nm = getSystemService(NotificationManager.class);
         NotificationChannel ch = new NotificationChannel(
                 CHANNEL, "Note Lock running", NotificationManager.IMPORTANCE_MIN);
@@ -63,7 +77,7 @@ public class LockService extends Service {
         Notification n = new Notification.Builder(this, CHANNEL)
                 .setSmallIcon(R.drawable.ic_notelock)
                 .setContentTitle("Note Lock is on")
-                .setContentText("Name the note to unlock your phone")
+                .setContentText("Name the note to get in")
                 .setOngoing(true)
                 .setContentIntent(open)
                 .build();
@@ -74,7 +88,9 @@ public class LockService extends Service {
             startForeground(1, n);
         }
 
-        IntentFilter f = new IntentFilter(Intent.ACTION_SCREEN_OFF);
+        IntentFilter f = new IntentFilter();
+        f.addAction(Intent.ACTION_SCREEN_OFF);
+        f.addAction(Intent.ACTION_SCREEN_ON);
         if (Build.VERSION.SDK_INT >= 33) {
             registerReceiver(screenReceiver, f, Context.RECEIVER_NOT_EXPORTED);
         } else {
@@ -84,15 +100,20 @@ public class LockService extends Service {
 
     @Override
     public int onStartCommand(Intent intent, int flags, int startId) {
-        if (!Notes.isEnabled(this)) {
+        if (!shouldRun(this)) {
+            watch.stop();
             stopSelf();
             return START_NOT_STICKY;
         }
+        PowerManager pm = getSystemService(PowerManager.class);
+        boolean screenOn = pm == null || pm.isInteractive();
+        if (AppWatch.active(this) && screenOn) watch.start(); else watch.stop();
         return START_STICKY;
     }
 
     @Override
     public void onDestroy() {
+        watch.stop();
         try {
             unregisterReceiver(screenReceiver);
         } catch (IllegalArgumentException ignored) {

@@ -95,6 +95,7 @@ public class AppPickerActivity extends Activity {
         list.setOnItemClickListener((parent, view, pos, id) -> toggle(shown.get(pos)));
         col.addView(list, new LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT, 0, 1f));
+        Ui.fitSystemBars(col);
         setContentView(col);
 
         new Thread(this::loadApps).start();

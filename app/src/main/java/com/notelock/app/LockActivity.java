@@ -7,7 +7,9 @@ import android.content.SharedPreferences;
 import android.graphics.Color;
 import android.graphics.drawable.GradientDrawable;
 import android.media.AudioManager;
+import android.os.Build;
 import android.os.Bundle;
+import android.window.OnBackInvokedDispatcher;
 import android.os.Handler;
 import android.os.Looper;
 import android.os.PowerManager;
@@ -74,7 +76,14 @@ public class LockActivity extends Activity {
         swipeZoneTop = screenH * 0.78f;  // swipe must start in the bottom part
         swipeDistance = dp(120);
 
-        setContentView(buildUi());
+        View ui = buildUi();
+        Ui.fitSystemBars(ui);
+        setContentView(ui);
+        // Android 13+ back gesture (Android 16 no longer calls onBackPressed).
+        if (Build.VERSION.SDK_INT >= 33) {
+            getOnBackInvokedDispatcher().registerOnBackInvokedCallback(
+                    OnBackInvokedDispatcher.PRIORITY_DEFAULT, this::handleBack);
+        }
         applyMode(getIntent());
         newQuestion();
     }
@@ -154,7 +163,11 @@ public class LockActivity extends Activity {
     @Override
     @SuppressWarnings("deprecation")
     public void onBackPressed() {
-        // Lock screen: Back does nothing. App lock: Back goes to the home screen.
+        handleBack();
+    }
+
+    /** Lock screen: Back does nothing. App lock: Back goes to the home screen. */
+    private void handleBack() {
         if (mode == MODE_APP) goHome();
     }
 
@@ -238,14 +251,14 @@ public class LockActivity extends Activity {
         unlocking = true;
         player.stop();
         if (mode == MODE_APP) {
-            AppLockService.markUnlocked(targetPkg);
+            AppWatch.markUnlocked(targetPkg);
             showingFor = null;
             finish();
             overridePendingTransition(0, android.R.anim.fade_out);
             return;
         }
         // Passing the lock screen also counts for the app you were in.
-        AppLockService.markUnlocked(AppLockService.lastForeground);
+        AppWatch.markUnlocked(AppWatch.lastForeground);
         KeyguardManager km = getSystemService(KeyguardManager.class);
         if (km != null && km.isKeyguardLocked()) {
             // Swipe lock: dismissed straight away. PIN/pattern/fingerprint: Android asks for it next.

@@ -10,8 +10,8 @@ public class BootReceiver extends BroadcastReceiver {
     public void onReceive(Context context, Intent intent) {
         String a = intent.getAction();
         if ((Intent.ACTION_BOOT_COMPLETED.equals(a) || Intent.ACTION_MY_PACKAGE_REPLACED.equals(a))
-                && Notes.isEnabled(context)) {
-            LockService.start(context);
+                && LockService.shouldRun(context)) {
+            LockService.refresh(context);
         }
     }
 }
