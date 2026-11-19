@@ -38,6 +38,8 @@ final class Pro {
     private boolean ready;
 
     static boolean owned(Context c) {
+        // The test APK you install yourself (debug build) can't buy through Play, so it's always Pro.
+        if ((c.getApplicationInfo().flags & android.content.pm.ApplicationInfo.FLAG_DEBUGGABLE) != 0) return true;
         return Notes.prefs(c).getBoolean(Notes.KEY_PRO, false);
     }
 

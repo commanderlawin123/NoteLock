@@ -95,7 +95,7 @@ public final class Music {
         SharedPreferences p = Notes.prefs(c);
         List<Integer> cats = new ArrayList<>();
         if (Notes.notesOn(p)) cats.add(CAT_NOTE);
-        boolean pro = p.getBoolean(Notes.KEY_PRO, false); // chords and scales are Pro
+        boolean pro = Pro.owned(c); // chords and scales are Pro
         if (pro && p.getBoolean(Notes.KEY_CHORDS_ON, false)) cats.add(CAT_CHORD);
         if (pro && p.getBoolean(Notes.KEY_SCALES_ON, false)) cats.add(CAT_SCALE);
         if (cats.isEmpty()) cats.add(CAT_NOTE);
