@@ -66,7 +66,7 @@ public final class Notes {
     }
 
     public static boolean isEnabled(Context c) {
-        return prefs(c).getBoolean(KEY_ENABLED, false);
+        return prefs(c).getBoolean(KEY_ENABLED, true); // lock screen is on by default
     }
 
     static final String KEY_LOCKED_APPS = "locked_apps";

@@ -36,6 +36,8 @@ final class Pro {
     private ProductDetails details;
     private String offerToken;
     private boolean ready;
+    /** Why the price couldn't be loaded last time (shown if the user taps Buy). */
+    private String problem;
 
     static boolean owned(Context c) {
         // The test APK you install yourself (debug build) can't buy through Play, so it's always Pro.
@@ -65,6 +67,9 @@ final class Pro {
                     ready = true;
                     loadProduct();
                     restore(false);
+                } else {
+                    problem = "Couldn't connect to Google Play (" + result.getDebugMessage()
+                            + "). Check that the Play Store app is signed in, then try again.";
                 }
             }
 
@@ -88,9 +93,18 @@ final class Pro {
                                 .build()))
                 .build();
         client.queryProductDetailsAsync(params, (result, productResult) -> {
-            if (result.getResponseCode() != BillingClient.BillingResponseCode.OK) return;
+            if (result.getResponseCode() != BillingClient.BillingResponseCode.OK) {
+                problem = "Google Play couldn't load Note Lock Pro (" + result.getDebugMessage()
+                        + "). Try again in a moment.";
+                return;
+            }
             List<ProductDetails> list = productResult.getProductDetailsList();
-            if (list == null || list.isEmpty()) return;
+            if (list == null || list.isEmpty()) {
+                problem = "Note Lock Pro isn't available from Google Play yet. A newly created "
+                        + "product can take a few hours to appear. Try again later.";
+                return;
+            }
+            problem = null;
             ProductDetails d = list.get(0);
             List<ProductDetails.OneTimePurchaseOfferDetails> offers = d.getOneTimePurchaseOfferDetailsList();
             if (offers == null || offers.isEmpty()) return;
@@ -136,9 +150,38 @@ final class Pro {
         });
     }
 
+    /** Ask Google Play for the price again if we don't have it yet (called when the screen opens). */
+    void refreshProduct() {
+        if (ready && details == null) loadProduct();
+        else if (!ready) connect();
+    }
+
+    private boolean installedFromPlay() {
+        try {
+            String installer;
+            if (android.os.Build.VERSION.SDK_INT >= 30) {
+                installer = activity.getPackageManager()
+                        .getInstallSourceInfo(activity.getPackageName()).getInstallingPackageName();
+            } else {
+                installer = activity.getPackageManager().getInstallerPackageName(activity.getPackageName());
+            }
+            return "com.android.vending".equals(installer);
+        } catch (Exception e) {
+            return true; // can't tell; don't blame the install source
+        }
+    }
+
     void buy() {
         if (details == null || offerToken == null) {
-            say("Purchases work only when Note Lock is installed from Google Play.");
+            if (!installedFromPlay()) {
+                say("Purchases work only when Note Lock is installed from Google Play.");
+            } else if (problem != null) {
+                say(problem);
+                refreshProduct();
+            } else {
+                say("Getting the price from Google Play. Try again in a few seconds.");
+                refreshProduct();
+            }
             return;
         }
         BillingFlowParams flow = BillingFlowParams.newBuilder()

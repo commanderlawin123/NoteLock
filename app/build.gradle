@@ -10,8 +10,8 @@ android {
         applicationId 'com.notelock.app'
         minSdk 27          // Android 8.1 and newer
         targetSdk 36       // Android 16 (required by Google Play for new apps)
-        versionCode 2
-        versionName '1.1'
+        versionCode 3
+        versionName '1.2'
     }
 
     signingConfigs {

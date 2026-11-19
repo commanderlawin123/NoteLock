@@ -233,13 +233,33 @@ public class MainActivity extends Activity {
         super.onResume();
         refresh();
         LockService.refresh(this);
-        if (pro != null) pro.restore(false);
+        if (pro != null) {
+            pro.refreshProduct();
+            pro.restore(false);
+        }
+        askForOverlayOnce();
     }
 
     @Override
     protected void onDestroy() {
         if (pro != null) pro.end();
         super.onDestroy();
+    }
+
+    private boolean askedOverlay;
+
+    /** First run: the lock screen is on by default, so ask for the one permission it needs. */
+    private void askForOverlayOnce() {
+        if (askedOverlay || !Notes.isEnabled(this) || Settings.canDrawOverlays(this)) return;
+        askedOverlay = true;
+        new android.app.AlertDialog.Builder(this)
+                .setTitle("Allow Note Lock on your lock screen")
+                .setMessage("To show the quiz when you wake your phone, Note Lock needs "
+                        + "\"Display over other apps\". Turn it on for Note Lock on the next screen.")
+                .setPositiveButton("Allow", (dlg, w) -> startActivity(new Intent(
+                        Settings.ACTION_MANAGE_OVERLAY_PERMISSION, Uri.parse("package:" + getPackageName()))))
+                .setNegativeButton("Not now", null)
+                .show();
     }
 
     private void openUsageAccess() {
