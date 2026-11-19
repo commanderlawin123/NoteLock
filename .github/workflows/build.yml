@@ -38,7 +38,9 @@ jobs:
           UPLOAD_KEY_ALIAS: ${{ secrets.UPLOAD_KEY_ALIAS }}
         run: |
           if [ -z "$UPLOAD_KEYSTORE_BASE64" ]; then
-            echo "::warning::Upload key secrets are not set yet, so no Play Store bundle was built."
+            echo "::warning::Upload key secrets are not set yet. Checking that the bundle builds, but not keeping it."
+            ./gradlew bundleRelease --no-daemon
+            rm -rf app/build/outputs/bundle
             exit 0
           fi
           echo "$UPLOAD_KEYSTORE_BASE64" | base64 -d > "$RUNNER_TEMP/upload.jks"
