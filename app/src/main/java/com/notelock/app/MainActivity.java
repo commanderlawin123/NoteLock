@@ -215,7 +215,7 @@ public class MainActivity extends Activity {
         pro = new Pro(this, new Pro.Listener() {
             @Override public void onProChanged(boolean owned) { refreshPro(); }
             @Override public void onPrice(String price) {
-                buyBtn.setText("Unlock chords & scales — " + price);
+                // The price is shown by Google Play's checkout, not on the button.
             }
             @Override public void onMessage(String message) {
                 Toast.makeText(MainActivity.this, message, Toast.LENGTH_LONG).show();
