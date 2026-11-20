@@ -12,6 +12,16 @@
     <uses-permission
         android:name="android.permission.PACKAGE_USAGE_STATS"
         tools:ignore="ProtectedPermissions" />
+    <!-- Note Lock never uses the advertising ID; make sure no library adds it -->
+    <uses-permission
+        android:name="com.google.android.gms.permission.AD_ID"
+        tools:node="remove" />
+
+    <!-- The quiz is laid out for portrait, but the app installs on any screen -->
+    <uses-feature
+        android:name="android.hardware.screen.portrait"
+        android:required="false" />
+
     <!-- In-app purchase (Note Lock Pro) -->
     <uses-permission android:name="com.android.vending.BILLING" />
 
